@@ -1,0 +1,85 @@
+Make Tiny url : 
+Functional Requirements : 
+1. given a url (long) task is to generate a short url for it.
+2. given the same short url generated in step 1 , it should redirect to the original url.
+
+Estimation of capacity.
+Q1. what will be the request count to generate short url.
+100 Mn
+estimate per second write operation 
+100 * pow(10,6)/month => pow(10,8)/30*24*3600
+=> pow(10,5)/3*20*36 => pow(10,4)/200 => 100/2 => 50 avg
+so in one second 50 request.
+and disk space => considering long url of 20B + 5B of short url => 25B
+so in 1 second disk space : 50*25B => 1250B 
+over year => 36GB 
+so we need 36 GB space for a year. good enough as normal db space is around 512GB 
+
+Q2.what will be the request count to get long url.
+10 billion per month
+estimate per second count
+pow(10,10)/30*24*3600 => pow(10,6)/216 = pow(10,6)/200 => (10,4)/2 => 5000
+so 5K requesr per second.
+now sinle machine has fd limit at hardware levele
+open file descriptor can have is 1024 , on inc more for production to 2024
+and as we will just do one fetch request so response wont take more than millisecond
+so considering avg tcp connection time as 100 millisecond => pow(10,-1)
+so 1 second effective open fd => 5000*0.1 => 500
+but if this response time increase then it will cause problem 
+so will have multiple server to do load balancing.
+
+Now postgres which i will be using as there is not much to store (long_url , short_url).
+the qps is aroung 50K for 11 core + 18GB RAM + 512GB ssd.
+so on that front we are good.
+and write also for small insert are around 10K so good on that front also.
+
+now we know disk space and time per query.
+
+now to make things faster will put one redis layer so will cache the request's response so will first check
+redis then go to primary db.
+in redis will also store data in (KEY , VALUE) format which will consume 25B essentially.
+now if will keep these for 1 day let say then memory need is
+25B*3600*24 => 2MB something which is reasonable.
+now will set config
+maxmemory 1GB
+maxmemory-policy allkeys-lru
+
+now to make read faster will create index on postgres over short_url column (b+ tree)
+so now if db decide to use index after query planner then will use index scan rather than linear seq scan
+so TC will be log(N)/log(M)
+
+Database schema
+
+table : url_shortner:
+
+create table url_shortner (long_url text unique , short_url varchar(100) unique) partition by hash(short_url);
+create index short_url_idx on url_shortner(short_url); #will make b+tree index
+
+now we can use partitioning and we should because 
+if we compute row or table size over a year
+then 100Mn in month => 100*10,6 => (10,8) => 10crore.
+in one month we end up having 10 crore rows.
+
+
+will do partitioning also on shorturl : strategy for partitioning will be hashing
+so will make multiple (4 , 5 child table) and it will hash the column VALUE of short_url 
+and then insert into one of the child/partitoned table.
+
+create table ch1 partition of url_shortner;
+similary for partition 2 , 3 , 4 , 5
+
+now for actually converting a long string into short one will use Rolling Hash Technique 
+and prime number i will chosse a high one p = (10,18) + 7
+so that collission will be 1/prime which is almost 0.
+
+endpoint : 
+[POST] : /api , 
+body : {long_url : text}
+response : {data : {short_url : text},status : 201}
+[GET] : /:short_url
+response {status : 302 , redirect : long_url}
+
+Image.
+
+
+
