@@ -1,0 +1,25 @@
+const PORT = process.env.PORT || 3000;
+const POSTGRES_HOST = process.env.POSTGRES_HOST;
+const POSTGRES_DATABASE = process.env.POSTGRES_DATABASE;
+const POSTGRES_PORT = process.env.POSTGRES_PORT;
+const POSTGRES_USER = process.env.POSTGRES_USER;
+const POSTGRES_PASSWORD = process.env.POSTGRES_PASSWORD;
+const REDIS_PORT = process.env.REDIS_PORT;
+const REDIS_HOST = process.env.REDIS_HOST; 
+const REDIS_USER = process.env.REDIS_USER; 
+const REDIS_PASSWORD = process.env.REDIS_PASSWORD || undefined;
+const REDIS_DATABASE = process.env.REDIS_DATABASE;
+
+module.exports = {
+  PORT,
+  POSTGRES_HOST,
+  POSTGRES_DATABASE,
+  POSTGRES_PORT,
+  POSTGRES_USER,
+  POSTGRES_PASSWORD,
+  REDIS_PORT,
+  REDIS_HOST,
+  REDIS_USER,
+  REDIS_DATABASE,
+  REDIS_PASSWORD,
+};
