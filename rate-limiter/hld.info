@@ -1,17 +1,60 @@
-Make Tiny url : 
+Make Rate limiter url : 
 Functional Requirements : 
+so the idea is to make a rate limiter which will restrict client to bombarred the request on server
+and to avoid DOS attack, and will also help in cost reduction specially when server in itself is
+making paid 3rd-party call.
 
 Estimation of capacity.
-Q1. what will be the request count to generate short url.
+Q1. so do we need to make it for the client end or for server end.
+will make more sense if make it for server. as users can break client end rate limiter by using postman or other app.
+Q2. On what key will throttle or block the request like userid or ip address.?
+for now will focus on ip as user can create fake account and make request.
+but with ip also , if one is blocked , all user behind the same router will be blocked.
+still lets go with ip.
+Q3.what will be scale in terms of user (user count).
+ans : 1MN
+Q4 : what is the rate of request?
+ans 10MN/min
+Q5 : will we make a global rate limiter or based on endpoints
+endpoint.
 
-Q2.what will be the request count to get long url.
-
-Space calculation:
-
+capacity calculation:
+so per min request is 10Mn
+in second => 1crore/100 => 10,5 => 100K request per second.
+and for space :
+if 1MN => 10^5 users are there considering there are 20 endpoint which needs to be throttled
+now per second request = 100K*20 request 
+and will store (ip + endpoint : count) => count is integer 4Byte + 8 Byte for key approx 10 byte
+so data need to store will be 2*10^6*10Byte => 20MB now per second this much of data will be there.
 Db selection
+as we need to quicky check the count of times a user has accessed a particular endpoint 
+so it does not make sense to store it in db like postgres as read and write will be slow as they persist in disk
+and also it acquire row level lock for update which make things more slow.
+
+so we can go with redis (IN memory)
+
+and also with only 20MB memory required at max with qps of 100K is feasible enough for redis server
+of 8-10 core and 10GB RAM.
 
 optimization strategy:
-
+nothing to be honest 
+as data is already in redis in form of key : value which make access super fast
 Database Schema design
+for rule engine : will store in some persistent db like postgres
+schema
+create table rule_engine (endpoint text, limitcount int,ttl int default 60);
+and when server start will load this rules in redis and also in rate limiter server's memory 
+to make it super fast.
 
 Api Contract:
+
+now anyrequest coming to server , server will check the limit for it
+so will call  rate limiter server
+now there will run a lua script to check count for that endpoint corresponding to key : ip + endpoint
+if more than limit in rule engine return 0
+else INCR by 1 if already exists otherwise set key , value , EX ttl`
+and return 1
+
+now this return value 1 and 0 entails : that access allowed and not allowed respectively.
+so for 0 will return 429
+and for 1 will call next()
