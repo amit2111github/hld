@@ -1,0 +1,17 @@
+Make Tiny url : 
+Functional Requirements : 
+
+Estimation of capacity.
+Q1. what will be the request count to generate short url.
+
+Q2.what will be the request count to get long url.
+
+Space calculation:
+
+Db selection
+
+optimization strategy:
+
+Database Schema design
+
+Api Contract:
